@@ -370,7 +370,25 @@
                 setCurrentBatch(nb);setScreen('editor');
             };
 
-            const editBatch=(batch)=>{setCurrentBatch(batch);setScreen('editor')};
+            const editBatch=(batch)=>{
+                // Sync batch inventory with current models - add any new models that don't exist
+                const currentModelNames = models.map(m => m);
+                const batchModelNames = batch.inventory.map(i => i.model);
+                const missingModels = currentModelNames.filter(m => !batchModelNames.includes(m));
+                
+                const updatedInventory = [
+                    ...batch.inventory,
+                    ...missingModels.map(m => ({model: m, oem: 0, aftermarket: 0}))
+                ];
+                
+                // Sort inventory to match current models order
+                const sortedInventory = currentModelNames.map(modelName => {
+                    return updatedInventory.find(i => i.model === modelName) || {model: modelName, oem: 0, aftermarket: 0};
+                });
+                
+                setCurrentBatch({...batch, inventory: sortedInventory});
+                setScreen('editor');
+            };
             const duplicateBatch=(batch)=>{const bn=`B${new Date().getFullYear()}-${String(batches.length+1).padStart(3,'0')}`;const inv=batch.inventory.map(i=>({model:i.model,oem:i.oem||0,aftermarket:i.aftermarket||0}));const nb={...batch,id:Date.now().toString(),batchNumber:bn,createdBy:currentUser.name,createdById:currentUser.id,createdAt:new Date().toISOString(),inventory:inv,analysis:null};setCurrentBatch(nb);setScreen('editor')};
             const saveBatch=async()=>{if(!currentBatch)return;const bs={...currentBatch,updatedAt:new Date().toISOString(),updatedBy:currentUser.name};const idx=batches.findIndex(b=>b.id===currentBatch.id);let nb;if(idx>=0){nb=[...batches];nb[idx]=bs}else{nb=[...batches,bs]}await saveBatches(nb);alert('Batch saved successfully!');setScreen('dashboard')};
             const deleteBatch=async(batchId)=>{if(!confirm('Delete?'))return;await saveBatches(batches.filter(b=>b.id!==batchId))};
@@ -416,7 +434,40 @@
                 await window.storage.set('suppliers',JSON.stringify(us),true);await window.storage.set('prices',JSON.stringify(up),true);setSuppliers(us);setPrices(up);alert('Supplier name updated!')
             };
 
-            const updatePrice=(model,supplier,quality,value)=>{const key=`${model}_${supplier}_${quality}`;setEditPrices({...editPrices,[key]:parseFloat(value)||0})};
+            const formatPrice=(value)=>{
+                // Remove any non-digit characters except decimal point
+                let cleaned = value.replace(/[^\d.]/g, '');
+                
+                // Ensure only one decimal point
+                const parts = cleaned.split('.');
+                if(parts.length > 2) {
+                    cleaned = parts[0] + '.' + parts.slice(1).join('');
+                }
+                
+                // Limit to 6 digits before decimal
+                const [beforeDecimal, afterDecimal] = cleaned.split('.');
+                let limited = beforeDecimal ? beforeDecimal.slice(0, 6) : '0';
+                
+                // Parse and format to 2 decimals
+                const num = parseFloat(limited + (afterDecimal ? '.' + afterDecimal : ''));
+                if(isNaN(num)) return '0.00';
+                
+                return num.toFixed(2);
+            };
+
+            const updatePrice=(model,supplier,quality,value)=>{
+                const key=`${model}_${supplier}_${quality}`;
+                // Store raw value while typing
+                setEditPrices({...editPrices,[key]:value});
+            };
+            
+            const handlePriceBlur=(model,supplier,quality)=>{
+                const key=`${model}_${supplier}_${quality}`;
+                const currentValue = editPrices[key];
+                const formatted = formatPrice(String(currentValue || '0'));
+                setEditPrices({...editPrices,[key]:parseFloat(formatted)});
+            };
+
             const exportBatch=(batch)=>{const d=JSON.stringify(batch,null,2);const blob=new Blob([d],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${batch.batchNumber}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)};
             const filteredBatches=batches.filter(batch=>batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())||batch.createdBy.toLowerCase().includes(searchTerm.toLowerCase()));
             const getDashboardStats=()=>{const totalBatches=batches.length;const analyzedBatches=batches.filter(b=>b.analysis).length;const totalRevenue=batches.reduce((sum,b)=>sum+(b.analysis?.optimalRevenue||0),0);const recentBatches=batches.slice(-5).reverse();return{totalBatches,analyzedBatches,totalRevenue,recentBatches}};
@@ -735,13 +786,13 @@
                                                             <td className="px-4 py-3 font-medium">{item.model}</td>
                                                             <td className="px-4 py-3">
                                                                 <div className="flex flex-col items-center gap-1">
-                                                                    <input type="number" min="0" value={oq} onChange={e => updateQuantity(idx, 'oem', e.target.value)} className="w-24 px-3 py-2 border rounded-lg text-center focus:ring-2 focus:ring-red-500 transition-all" />
+                                                                    <input type="number" min="0" step="1" value={oq} onChange={e => updateQuantity(idx, 'oem', e.target.value)} className="w-24 px-3 py-2 border rounded-lg text-center focus:ring-2 focus:ring-red-500 transition-all" />
                                                                     {oq > 0 && <div className="text-xs text-green-600 font-semibold animate-fade-in">${ob.toFixed(2)} × {oq} = ${(ob * oq).toFixed(2)}</div>}
                                                                 </div>
                                                             </td>
                                                             <td className="px-4 py-3">
                                                                 <div className="flex flex-col items-center gap-1">
-                                                                    <input type="number" min="0" value={aq} onChange={e => updateQuantity(idx, 'aftermarket', e.target.value)} className="w-24 px-3 py-2 border rounded-lg text-center focus:ring-2 focus:ring-red-500 transition-all" />
+                                                                    <input type="number" min="0" step="1" value={aq} onChange={e => updateQuantity(idx, 'aftermarket', e.target.value)} className="w-24 px-3 py-2 border rounded-lg text-center focus:ring-2 focus:ring-red-500 transition-all" />
                                                                     {aq > 0 && <div className="text-xs text-green-600 font-semibold animate-fade-in">${ab.toFixed(2)} × {aq} = ${(ab * aq).toFixed(2)}</div>}
                                                                 </div>
                                                             </td>
@@ -856,7 +907,15 @@
                                                             const k = `${mod}_${sup.name}_${q}`;
                                                             return (
                                                                 <td key={k} className="px-2 py-2 text-center">
-                                                                    <input type="number" min="0" step="0.01" value={editPrices[k] || 0} onChange={e => updatePrice(mod, sup.name, q, e.target.value)} className="w-20 px-2 py-1 border rounded text-center focus:ring-2 focus:ring-red-500 transition-all" />
+                                                                    <input 
+                                                                        type="number" 
+                                                                        min="0" 
+                                                                        step="0.01" 
+                                                                        value={editPrices[k] || 0} 
+                                                                        onChange={e => updatePrice(mod, sup.name, q, e.target.value)} 
+                                                                        onBlur={() => handlePriceBlur(mod, sup.name, q)}
+                                                                        className="w-20 px-2 py-1 border rounded text-center focus:ring-2 focus:ring-red-500 transition-all" 
+                                                                    />
                                                                 </td>
                                                             );
                                                         }))}
