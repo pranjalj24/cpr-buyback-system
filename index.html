@@ -333,10 +333,6 @@
             const [resettingUserId, setResettingUserId] = useState(null);
             const [newPassword, setNewPassword] = useState('');
             const [regEmail, setRegEmail] = useState('');
-            
-            const [modelCategory, setModelCategory] = useState('iPhone');
-            const [priceCategory, setPriceCategory] = useState('iPhone');
-            const [newDeviceCategory, setNewDeviceCategory] = useState('iPhone');
 
             useEffect(() => {
                 loadData();
@@ -555,20 +551,6 @@
                 setUsers(updatedUsers);
                 await window.storage.set('users', JSON.stringify(updatedUsers), true);
                 alert(`✅ Password reset for ${user.name}! New password: ${newPass}`);
-            };
-            
-            // Helper function to detect device category
-            const getDeviceCategory = (modelName) => {
-                const name = modelName.toLowerCase();
-                if (name.includes('iphone')) return 'iPhone';
-                if (name.includes('samsung') || name.includes('galaxy')) return 'Samsung';
-                if (name.includes('pixel') || name.includes('google')) return 'Google';
-                return 'Other';
-            };
-            
-            // Get models by category
-            const getModelsByCategory = (category) => {
-                return editModels.filter(model => getDeviceCategory(model) === category);
             };
             
             const handleExcelUpload = async (event) => {
@@ -1172,7 +1154,7 @@
                                     <Package size={24} className="text-red-600" /><span className="font-semibold">All Batches</span>
                                 </button>
                                 <button onClick={() => setScreen('settings')} className="bg-white hover:bg-gray-50 p-6 rounded-xl shadow flex items-center gap-3 border-2 btn-hover">
-                                    <Settings size={24} className="text-red-600" /><span className="font-semibold">Settings</span>
+                                    <span className="text-red-600 text-2xl">⚙️</span><span className="font-semibold">Settings</span>
                                 </button>
                                 <button onClick={() => setScreen('users')} className="bg-white hover:bg-gray-50 p-6 rounded-xl shadow flex items-center gap-3 border-2 btn-hover">
                                     <Users size={24} className="text-red-600" /><span className="font-semibold">Users</span>
@@ -1530,34 +1512,6 @@
                                         <div className="text-sm text-gray-600 italic">Auto-saves when you click away from a field</div>
                                     </div>
                                     
-                                    {/* Category Tabs for Prices */}
-                                    <div className="flex gap-2 mb-4 border-b-2">
-                                        <button 
-                                            onClick={() => setPriceCategory('iPhone')}
-                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'iPhone' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📱 iPhone
-                                        </button>
-                                        <button 
-                                            onClick={() => setPriceCategory('Samsung')}
-                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'Samsung' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📱 Samsung
-                                        </button>
-                                        <button 
-                                            onClick={() => setPriceCategory('Google')}
-                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'Google' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📱 Google
-                                        </button>
-                                        <button 
-                                            onClick={() => setPriceCategory('All')}
-                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'All' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📋 All Devices
-                                        </button>
-                                    </div>
-                                    
                                     <div className="overflow-auto" style={{ maxHeight: '600px' }}>
                                         <table className="w-full text-sm">
                                             <thead className="bg-gray-50 sticky top-0">
@@ -1571,7 +1525,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {(priceCategory === 'All' ? editModels : getModelsByCategory(priceCategory)).map((mod, i) => (
+                                                {editModels.map((mod, i) => (
                                                     <tr key={i} className="border-t hover:bg-red-50 transition-colors">
                                                         <td className="px-4 py-2 font-medium sticky left-0 bg-white">{mod}</td>
                                                         {editSuppliers.map(sup => sup.qualities.map(q => {
@@ -1603,73 +1557,17 @@
                                         <h2 className="text-xl font-bold">Models</h2>
                                         <div className="text-sm text-gray-600 italic">Auto-saves when you add/remove</div>
                                     </div>
-                                    
-                                    {/* Category Tabs */}
-                                    <div className="flex gap-2 mb-6 border-b-2">
-                                        <button 
-                                            onClick={() => setModelCategory('iPhone')}
-                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'iPhone' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📱 iPhone
-                                        </button>
-                                        <button 
-                                            onClick={() => setModelCategory('Samsung')}
-                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'Samsung' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📱 Samsung
-                                        </button>
-                                        <button 
-                                            onClick={() => setModelCategory('Google')}
-                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'Google' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📱 Google
-                                        </button>
-                                        <button 
-                                            onClick={() => setModelCategory('All')}
-                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'All' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
-                                        >
-                                            📋 All Devices
-                                        </button>
-                                    </div>
-                                    
-                                    {/* Add Device Section */}
                                     <div className="flex gap-3 mb-6">
-                                        <input 
-                                            type="text" 
-                                            value={newModel} 
-                                            onChange={e => setNewModel(e.target.value)} 
-                                            placeholder={`Add ${modelCategory === 'All' ? '' : modelCategory + ' '}device name`}
-                                            className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" 
-                                            onKeyPress={e => e.key === 'Enter' && addModel()} 
-                                        />
-                                        <select 
-                                            value={newDeviceCategory}
-                                            onChange={e => setNewDeviceCategory(e.target.value)}
-                                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all"
-                                        >
-                                            <option value="iPhone">iPhone</option>
-                                            <option value="Samsung">Samsung</option>
-                                            <option value="Google">Google</option>
-                                        </select>
+                                        <input type="text" value={newModel} onChange={e => setNewModel(e.target.value)} placeholder="Add device name" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" onKeyPress={e => e.key === 'Enter' && addModel()} />
                                         <button onClick={addModel} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold btn-hover">Add</button>
                                     </div>
-                                    
-                                    {/* Models Grid - Filtered by Category */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                                        {(modelCategory === 'All' ? editModels : getModelsByCategory(modelCategory)).map((mod, i) => (
+                                        {editModels.map((mod, i) => (
                                             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded border card-hover animate-fade-in" style={{animationDelay: `${i * 0.02}s`}}>
-                                                <div>
-                                                    <span className="font-medium">{mod}</span>
-                                                    <div className="text-xs text-gray-500 mt-1">{getDeviceCategory(mod)}</div>
-                                                </div>
+                                                <span className="font-medium">{mod}</span>
                                                 <button onClick={() => removeModel(mod)} className="text-red-600 hover:text-red-800 transition-colors"><Trash2 size={16} /></button>
                                             </div>
                                         ))}
-                                        {modelCategory !== 'All' && getModelsByCategory(modelCategory).length === 0 && (
-                                            <div className="col-span-3 text-center py-8 text-gray-500">
-                                                No {modelCategory} devices yet. Add one above!
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )}
