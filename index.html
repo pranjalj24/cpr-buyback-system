@@ -573,8 +573,11 @@
             };
 
             const formatPrice=(value)=>{
-                // Remove any non-digit characters except decimal point
-                let cleaned = value.replace(/[^\d.]/g, '');
+                // Convert to string and remove any non-digit characters except decimal point
+                let cleaned = String(value).replace(/[^\d.]/g, '');
+                
+                // Handle empty or just decimal point
+                if (!cleaned || cleaned === '.') return '0.00';
                 
                 // Ensure only one decimal point
                 const parts = cleaned.split('.');
@@ -582,12 +585,14 @@
                     cleaned = parts[0] + '.' + parts.slice(1).join('');
                 }
                 
-                // Limit to 6 digits before decimal
+                // Split into before and after decimal
                 const [beforeDecimal, afterDecimal] = cleaned.split('.');
-                let limited = beforeDecimal ? beforeDecimal.slice(0, 6) : '0';
                 
-                // Parse and format to 2 decimals
-                const num = parseFloat(limited + (afterDecimal ? '.' + afterDecimal : ''));
+                // Limit to 6 digits before decimal, remove leading zeros
+                let limited = beforeDecimal ? beforeDecimal.slice(0, 6).replace(/^0+/, '') || '0' : '0';
+                
+                // Parse and format to exactly 2 decimals
+                const num = parseFloat(limited + (afterDecimal !== undefined ? '.' + afterDecimal : ''));
                 if(isNaN(num)) return '0.00';
                 
                 return num.toFixed(2);
@@ -730,21 +735,21 @@
                         .sort((a, b) => b[1] - a[1]);
                     
                     if (sortedSuppliers.length > 0) {
-                        const allocationHeaders = ['Supplier', 'Items', 'Total Quantity', 'Amount'];
+                        const allocationHeaders = ['Supplier', 'Models', 'Total Quantity', 'Amount'];
                         const allocationRows = sortedSuppliers.map(([supplier, total]) => {
                             const items = batch.analysis.supplierAllocations[supplier] || [];
                             const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
-                            const uniqueModels = new Set(items.map(i => i.model)).size;
+                            const modelNames = [...new Set(items.map(i => i.model))].join(', ');
                             return [
                                 supplier,
-                                `${uniqueModels} model${uniqueModels !== 1 ? 's' : ''}`,
+                                modelNames,
                                 String(totalQty),
                                 `$${total.toFixed(2)}`
                             ];
                         });
                         
                         y = addTable(allocationHeaders, allocationRows, y, {
-                            columnWidths: [70, 35, 35, 40],
+                            columnWidths: [45, 80, 25, 30],
                             fontSize: 9,
                             headerColor: [30, 64, 175]
                         });
@@ -1354,7 +1359,7 @@
                                         <div className="text-sm text-gray-600 italic">Auto-saves when you add/remove</div>
                                     </div>
                                     <div className="flex gap-3 mb-6">
-                                        <input type="text" value={newModel} onChange={e => setNewModel(e.target.value)} placeholder="iPhone 17 Pro Max" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" onKeyPress={e => e.key === 'Enter' && addModel()} />
+                                        <input type="text" value={newModel} onChange={e => setNewModel(e.target.value)} placeholder="Add device name" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" onKeyPress={e => e.key === 'Enter' && addModel()} />
                                         <button onClick={addModel} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold btn-hover">Add</button>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
