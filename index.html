@@ -326,6 +326,18 @@
 
             useEffect(() => {
                 loadData();
+                // Check for saved login session
+                const savedUser = localStorage.getItem('currentUser');
+                if (savedUser) {
+                    try {
+                        const user = JSON.parse(savedUser);
+                        setCurrentUser(user);
+                        setIsAuthenticated(true);
+                        setScreen('dashboard');
+                    } catch (e) {
+                        localStorage.removeItem('currentUser');
+                    }
+                }
             }, []);
 
             const loadData = async () => {
@@ -355,7 +367,25 @@
             const handleLogin=()=>{
                 if(!loginUsername.trim()||!loginPassword.trim()){setLoginError('Please enter username and password');return;}
                 const user=users.find(u=>u.username===loginUsername&&u.password===loginPassword);
-                if(user){setCurrentUser(user);setIsAuthenticated(true);setScreen('dashboard');setLoginError('');setLoginUsername('');setLoginPassword('');}else{setLoginError('Invalid username or password');}
+                if(user){
+                    setCurrentUser(user);
+                    setIsAuthenticated(true);
+                    setScreen('dashboard');
+                    setLoginError('');
+                    setLoginUsername('');
+                    setLoginPassword('');
+                    // Save login session
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                }else{
+                    setLoginError('Invalid username or password');
+                }
+            };
+            
+            const handleLogout = () => {
+                setIsAuthenticated(false);
+                setCurrentUser(null);
+                setScreen('login');
+                localStorage.removeItem('currentUser');
             };
 
             const handleRegister=async()=>{
@@ -405,7 +435,13 @@
             const createNewBatch=()=>{
                 const bn=`B${new Date().getFullYear()}-${String(batches.length+1).padStart(3,'0')}`;
                 const nb={id:Date.now().toString(),batchNumber:bn,createdBy:currentUser.name,createdById:currentUser.id,createdAt:new Date().toISOString(),inventory:models.map(m=>({model:m,oem:0,aftermarket:0})),analysis:null};
-                setCurrentBatch(nb);setScreen('editor');
+                setCurrentBatch(nb);
+                setScreen('editor');
+                // Trigger rename mode immediately for new batches
+                setTimeout(() => {
+                    setIsRenamingBatch(true);
+                    setTempBatchName(bn);
+                }, 100);
             };
 
             const editBatch=(batch)=>{
@@ -574,133 +610,272 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 
-                // Header with CPR branding
-                doc.setFillColor(220, 38, 38); // Red color
-                doc.rect(0, 0, 210, 40, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(24);
-                doc.setFont(undefined, 'bold');
-                doc.text('CPR', 20, 25);
-                doc.setFontSize(14);
-                doc.text('Screen Buyback Report', 60, 25);
+                // Helper function to add table
+                const addTable = (headers, rows, startY, options = {}) => {
+                    const { columnWidths = [], fontSize = 9, headerColor = [220, 38, 38] } = options;
+                    let y = startY;
+                    const cellPadding = 3;
+                    const rowHeight = 7;
+                    const startX = 15;
+                    
+                    // Calculate column widths if not provided
+                    const cols = columnWidths.length > 0 ? columnWidths : headers.map(() => 180 / headers.length);
+                    
+                    // Draw header
+                    doc.setFillColor(...headerColor);
+                    doc.rect(startX, y, cols.reduce((a, b) => a + b, 0), rowHeight, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(fontSize);
+                    doc.setFont(undefined, 'bold');
+                    
+                    let x = startX;
+                    headers.forEach((header, i) => {
+                        doc.text(header, x + cellPadding, y + 5);
+                        x += cols[i];
+                    });
+                    
+                    y += rowHeight;
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    
+                    // Draw rows
+                    rows.forEach((row, rowIndex) => {
+                        if (y > 270) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        
+                        // Alternate row colors
+                        if (rowIndex % 2 === 0) {
+                            doc.setFillColor(249, 250, 251);
+                            doc.rect(startX, y, cols.reduce((a, b) => a + b, 0), rowHeight, 'F');
+                        }
+                        
+                        // Draw cell borders
+                        doc.setDrawColor(229, 231, 235);
+                        x = startX;
+                        row.forEach((cell, i) => {
+                            doc.rect(startX + cols.slice(0, i).reduce((a, b) => a + b, 0), y, cols[i], rowHeight);
+                        });
+                        
+                        // Draw cell content
+                        x = startX;
+                        row.forEach((cell, i) => {
+                            const cellText = String(cell);
+                            const isBold = cellText.includes('✓') || cellText.includes('BEST');
+                            if (isBold) doc.setFont(undefined, 'bold');
+                            if (cellText.includes('✓')) doc.setTextColor(22, 163, 74);
+                            
+                            doc.text(cellText, x + cellPadding, y + 5);
+                            
+                            if (isBold) doc.setFont(undefined, 'normal');
+                            if (cellText.includes('✓')) doc.setTextColor(0, 0, 0);
+                            x += cols[i];
+                        });
+                        
+                        y += rowHeight;
+                    });
+                    
+                    return y + 5;
+                };
                 
-                // Batch Information
+                // Header with CPR branding
+                doc.setFillColor(220, 38, 38);
+                doc.rect(0, 0, 210, 35, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(28);
+                doc.setFont(undefined, 'bold');
+                doc.text('CPR', 15, 20);
+                doc.setFontSize(16);
+                doc.text('SCREEN BUYBACK REPORT', 60, 20);
+                
+                // Batch Information Box
+                doc.setFillColor(249, 250, 251);
+                doc.rect(15, 40, 180, 20, 'F');
+                doc.setDrawColor(220, 38, 38);
+                doc.setLineWidth(0.5);
+                doc.rect(15, 40, 180, 20);
+                
                 doc.setTextColor(0, 0, 0);
-                doc.setFontSize(11);
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text(batch.batchNumber, 20, 48);
+                doc.setFontSize(9);
                 doc.setFont(undefined, 'normal');
-                let y = 50;
-                doc.text(`Batch Number: ${batch.batchNumber}`, 20, y);
-                y += 7;
-                doc.text(`Created by: ${batch.createdBy}`, 20, y);
-                y += 7;
-                doc.text(`Date: ${new Date(batch.createdAt).toLocaleDateString()}`, 20, y);
-                y += 7;
+                doc.text(`Created: ${new Date(batch.createdAt).toLocaleDateString()}`, 20, 53);
+                doc.text(`By: ${batch.createdBy}`, 20, 57);
                 if (batch.updatedAt) {
-                    doc.text(`Last Updated: ${new Date(batch.updatedAt).toLocaleDateString()}`, 20, y);
-                    y += 7;
+                    doc.text(`Updated: ${new Date(batch.updatedAt).toLocaleDateString()}`, 110, 53);
                 }
                 
-                y += 5;
-                doc.setDrawColor(220, 38, 38);
-                doc.line(20, y, 190, y);
-                y += 10;
+                let y = 68;
                 
-                // Inventory Section
-                doc.setFontSize(14);
+                // Section 1: Inventory Summary
+                doc.setFontSize(13);
                 doc.setFont(undefined, 'bold');
-                doc.text('INVENTORY', 20, y);
-                y += 10;
+                doc.setTextColor(220, 38, 38);
+                doc.text('INVENTORY SUMMARY', 15, y);
+                y += 8;
                 
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-                batch.inventory.forEach(item => {
-                    if (item.oem > 0 || item.aftermarket > 0) {
-                        doc.setFont(undefined, 'bold');
-                        doc.text(item.model, 25, y);
-                        y += 6;
-                        doc.setFont(undefined, 'normal');
-                        if (item.oem > 0) {
-                            doc.text(`  OEM/Refurb: ${item.oem} units`, 25, y);
-                            y += 5;
-                        }
-                        if (item.aftermarket > 0) {
-                            doc.text(`  Aftermarket: ${item.aftermarket} units`, 25, y);
-                            y += 5;
-                        }
-                        y += 3;
-                    }
-                    if (y > 270) {
+                const inventoryHeaders = ['Model', 'OEM/Refurb', 'Aftermarket', 'Total Units'];
+                const inventoryRows = batch.inventory
+                    .filter(item => item.oem > 0 || item.aftermarket > 0)
+                    .map(item => [
+                        item.model,
+                        String(item.oem || 0),
+                        String(item.aftermarket || 0),
+                        String((item.oem || 0) + (item.aftermarket || 0))
+                    ]);
+                
+                if (inventoryRows.length > 0) {
+                    y = addTable(inventoryHeaders, inventoryRows, y, {
+                        columnWidths: [80, 30, 30, 30],
+                        fontSize: 9
+                    });
+                } else {
+                    doc.setFont(undefined, 'italic');
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('No inventory items', 20, y);
+                    y += 10;
+                }
+                
+                // Section 2: Detailed Supplier Pricing Analysis (if analysis exists)
+                if (batch.analysis) {
+                    y += 5;
+                    if (y > 250) {
                         doc.addPage();
                         y = 20;
                     }
-                });
-                
-                // Analysis Section
-                if (batch.analysis) {
-                    y += 10;
-                    doc.setDrawColor(220, 38, 38);
-                    doc.line(20, y, 190, y);
-                    y += 10;
                     
-                    doc.setFontSize(14);
+                    doc.setFontSize(13);
                     doc.setFont(undefined, 'bold');
-                    doc.text('ANALYSIS', 20, y);
-                    y += 10;
+                    doc.setTextColor(220, 38, 38);
+                    doc.text('DETAILED PRICING ANALYSIS', 15, y);
+                    y += 8;
                     
-                    // Optimal Revenue - Highlighted
-                    doc.setFillColor(34, 197, 94); // Green
-                    doc.rect(20, y - 7, 170, 12, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(16);
-                    doc.text(`Optimal Revenue: $${batch.analysis.optimalRevenue.toFixed(2)}`, 25, y);
-                    doc.setTextColor(0, 0, 0);
-                    y += 15;
+                    // For each inventory item with quantities, show supplier comparison
+                    batch.inventory.forEach(item => {
+                        ['OEM/Refurb', 'Aftermarket'].forEach(quality => {
+                            const qty = quality === 'OEM/Refurb' ? item.oem : item.aftermarket;
+                            if (qty > 0) {
+                                if (y > 260) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                
+                                // Item header
+                                doc.setFontSize(10);
+                                doc.setFont(undefined, 'bold');
+                                doc.setTextColor(0, 0, 0);
+                                doc.text(`${item.model} - ${quality} (${qty} units)`, 20, y);
+                                y += 6;
+                                
+                                // Build supplier comparison rows
+                                const supplierPrices = [];
+                                let bestPrice = 0;
+                                let bestSupplier = '';
+                                
+                                suppliers.forEach(sup => {
+                                    const priceKey = `${item.model}_${sup.name}_${quality}`;
+                                    const price = prices[priceKey] || 0;
+                                    supplierPrices.push({
+                                        name: sup.name,
+                                        price: price,
+                                        total: price * qty
+                                    });
+                                    if (price > bestPrice) {
+                                        bestPrice = price;
+                                        bestSupplier = sup.name;
+                                    }
+                                });
+                                
+                                // Create comparison table
+                                const comparisonHeaders = ['Supplier', 'Price/Unit', 'Total', 'Status'];
+                                const comparisonRows = supplierPrices.map(sp => [
+                                    sp.name,
+                                    `$${sp.price.toFixed(2)}`,
+                                    `$${sp.total.toFixed(2)}`,
+                                    sp.name === bestSupplier ? '✓ BEST' : ''
+                                ]);
+                                
+                                y = addTable(comparisonHeaders, comparisonRows, y, {
+                                    columnWidths: [60, 30, 30, 30],
+                                    fontSize: 8,
+                                    headerColor: [100, 116, 139]
+                                });
+                                
+                                y += 3;
+                            }
+                        });
+                    });
                     
-                    // Supplier Breakdown
-                    doc.setFontSize(12);
+                    // Section 3: Revenue Summary Box
+                    y += 5;
+                    if (y > 250) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    doc.setFillColor(220, 252, 231);
+                    doc.setDrawColor(22, 163, 74);
+                    doc.setLineWidth(1);
+                    doc.rect(15, y, 180, 20, 'FD');
+                    doc.setTextColor(22, 163, 74);
+                    doc.setFontSize(11);
                     doc.setFont(undefined, 'bold');
-                    doc.text('Supplier Allocation', 20, y);
+                    doc.text('OPTIMAL REVENUE', 20, y + 8);
+                    doc.setFontSize(18);
+                    doc.text(`$${batch.analysis.optimalRevenue.toFixed(2)}`, 20, y + 16);
+                    
+                    y += 28;
+                    
+                    // Section 4: Supplier Allocation Summary
+                    doc.setFontSize(13);
+                    doc.setTextColor(220, 38, 38);
+                    doc.text('ALLOCATION SUMMARY', 15, y);
                     y += 8;
                     
                     const sortedSuppliers = Object.entries(batch.analysis.supplierTotals)
                         .filter(([_, t]) => t > 0)
                         .sort((a, b) => b[1] - a[1]);
                     
-                    doc.setFontSize(10);
-                    sortedSuppliers.forEach(([supplier, total]) => {
-                        const items = batch.analysis.supplierAllocations[supplier] || [];
-                        
-                        doc.setFont(undefined, 'bold');
-                        doc.text(`${supplier}: $${total.toFixed(2)}`, 25, y);
-                        y += 6;
-                        
-                        doc.setFont(undefined, 'normal');
-                        items.forEach(item => {
-                            doc.text(`  ${item.model} (${item.quality}): ${item.quantity} × $${item.price.toFixed(2)} = $${item.total.toFixed(2)}`, 25, y);
-                            y += 5;
-                            if (y > 270) {
-                                doc.addPage();
-                                y = 20;
-                            }
+                    if (sortedSuppliers.length > 0) {
+                        const allocationHeaders = ['Supplier', 'Items', 'Total Quantity', 'Amount'];
+                        const allocationRows = sortedSuppliers.map(([supplier, total]) => {
+                            const items = batch.analysis.supplierAllocations[supplier] || [];
+                            const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+                            const uniqueModels = new Set(items.map(i => i.model)).size;
+                            return [
+                                supplier,
+                                `${uniqueModels} model${uniqueModels !== 1 ? 's' : ''}`,
+                                String(totalQty),
+                                `$${total.toFixed(2)}`
+                            ];
                         });
-                        y += 3;
-                    });
+                        
+                        y = addTable(allocationHeaders, allocationRows, y, {
+                            columnWidths: [70, 35, 35, 40],
+                            fontSize: 9
+                        });
+                    }
                 }
                 
-                // Footer
+                // Footer on all pages
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
                     doc.setFontSize(8);
                     doc.setTextColor(128, 128, 128);
-                    doc.text(`Generated by CPR Buyback Management System - Page ${i} of ${pageCount}`, 20, 290);
+                    doc.text(`CPR Buyback Management System | ${new Date().toLocaleDateString()}`, 15, 290);
+                    doc.text(`Page ${i} of ${pageCount}`, 180, 290);
                 }
                 
-                // Save PDF
-                doc.save(`${batch.batchNumber}_Report.pdf`);
+                // Save with batch name
+                const fileName = `${batch.batchNumber.replace(/[^a-zA-Z0-9-_]/g, '_')}_Report.pdf`;
+                doc.save(fileName);
             };
 
-            const filteredBatches=batches.filter(batch=>batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())||batch.createdBy.toLowerCase().includes(searchTerm.toLowerCase()));
+            const filteredBatches=batches.filter(batch=>batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())||batch.createdBy.toLowerCase().includes(searchTerm.toLowerCase())).reverse();
             const getDashboardStats=()=>{const totalBatches=batches.length;const analyzedBatches=batches.filter(b=>b.analysis).length;const totalRevenue=batches.reduce((sum,b)=>sum+(b.analysis?.optimalRevenue||0),0);const recentBatches=batches.slice(-5).reverse();return{totalBatches,analyzedBatches,totalRevenue,recentBatches}};
 
             if(!isAuthenticated){
@@ -764,7 +939,7 @@
                         <div className="bg-white shadow border-b">
                             <div className="max-w-7xl mx-auto px-4 py-3">
                                 <div className="flex justify-end mb-2">
-                                    <button onClick={() => { setIsAuthenticated(false); setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
+                                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
                                         <LogOut size={18} />Logout
                                     </button>
                                 </div>
@@ -860,7 +1035,7 @@
                         <div className="bg-white shadow border-b">
                             <div className="max-w-7xl mx-auto px-4 py-3">
                                 <div className="flex justify-end mb-2">
-                                    <button onClick={() => { setIsAuthenticated(false); setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
+                                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
                                         <LogOut size={18} />Logout
                                     </button>
                                 </div>
@@ -945,7 +1120,7 @@
                         <div className="bg-white shadow border-b">
                             <div className="max-w-7xl mx-auto px-4 py-3">
                                 <div className="flex justify-end mb-2">
-                                    <button onClick={() => { setIsAuthenticated(false); setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
+                                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
                                         <LogOut size={18} />Logout
                                     </button>
                                 </div>
@@ -1109,7 +1284,7 @@
                         <div className="bg-white shadow border-b">
                             <div className="max-w-7xl mx-auto px-4 py-3">
                                 <div className="flex justify-end mb-2">
-                                    <button onClick={() => { setIsAuthenticated(false); setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
+                                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
                                         <LogOut size={18} />Logout
                                     </button>
                                 </div>
@@ -1260,7 +1435,7 @@
                         <div className="bg-white shadow border-b">
                             <div className="max-w-7xl mx-auto px-4 py-3">
                                 <div className="flex justify-end mb-2">
-                                    <button onClick={() => { setIsAuthenticated(false); setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
+                                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg btn-hover transition-all">
                                         <LogOut size={18} />Logout
                                     </button>
                                 </div>
