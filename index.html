@@ -323,6 +323,13 @@
             const [tempBatchName, setTempBatchName] = useState('');
             const [isSavingBatch, setIsSavingBatch] = useState(false);
             const [saveMessage, setSaveMessage] = useState('');
+            
+            const [isUploadingExcel, setIsUploadingExcel] = useState(false);
+            const [uploadMessage, setUploadMessage] = useState('');
+            
+            const [resettingUserId, setResettingUserId] = useState(null);
+            const [newPassword, setNewPassword] = useState('');
+            const [regEmail, setRegEmail] = useState('');
 
             useEffect(() => {
                 loadData();
@@ -390,15 +397,16 @@
             };
 
             const handleRegister=async()=>{
-                if(!regName.trim()||!regUsername.trim()||!regPassword.trim()){setRegError('All fields are required');return;}
+                if(!regName.trim()||!regUsername.trim()||!regPassword.trim()||!regEmail.trim()){setRegError('All fields are required');return;}
                 if(users.find(u=>u.username===regUsername)){setRegError('Username already exists');return;}
                 if(regPassword.length<6){setRegError('Password must be at least 6 characters');return;}
-                const newUser={id:Date.now().toString(),name:regName,username:regUsername,password:regPassword,role:'user',createdAt:new Date().toISOString()};
+                if(!regEmail.includes('@')){setRegError('Please enter a valid email');return;}
+                const newUser={id:Date.now().toString(),name:regName,username:regUsername,password:regPassword,email:regEmail,role:'user',createdAt:new Date().toISOString()};
                 const updatedUsers=[...users,newUser];
                 setUsers(updatedUsers);
                 await window.storage.set('users',JSON.stringify(updatedUsers),true);
                 alert('Account created successfully!');
-                setShowRegister(false);setRegName('');setRegUsername('');setRegPassword('');setRegError('');
+                setShowRegister(false);setRegName('');setRegUsername('');setRegPassword('');setRegEmail('');setRegError('');
             };
 
             const saveBatches=async(newBatches)=>{try{await window.storage.set('batches',JSON.stringify(newBatches),true);setBatches(newBatches)}catch(error){console.error('Error:',error)}};
@@ -549,6 +557,27 @@
                 } catch (error) {
                     alert('Error updating data: ' + error.message);
                 }
+            };
+            
+            const handlePasswordReset = async (userId) => {
+                const user = users.find(u => u.id === userId);
+                if (!user) return;
+                
+                const newPass = prompt(`Enter new password for ${user.name}:`);
+                if (!newPass) return;
+                
+                if (newPass.length < 6) {
+                    alert('Password must be at least 6 characters');
+                    return;
+                }
+                
+                const updatedUsers = users.map(u => 
+                    u.id === userId ? {...u, password: newPass} : u
+                );
+                
+                setUsers(updatedUsers);
+                await window.storage.set('users', JSON.stringify(updatedUsers), true);
+                alert(`✅ Password reset for ${user.name}! New password: ${newPass}`);
             };
 
             const addModel=async()=>{
@@ -957,6 +986,7 @@
                                     <div className="text-center mb-6"><h2 className="text-2xl font-bold">Create Account</h2></div>
                                     <div className="space-y-4">
                                         <input type="text" value={regName} onChange={e=>setRegName(e.target.value)} placeholder="Full Name" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all"/>
+                                        <input type="email" value={regEmail} onChange={e=>setRegEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all"/>
                                         <input type="text" value={regUsername} onChange={e=>setRegUsername(e.target.value)} placeholder="Username" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all"/>
                                         <input type="password" value={regPassword} onChange={e=>setRegPassword(e.target.value)} placeholder="Password (min 6 chars)" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all"/>
                                         {regError&&<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm animate-slide-in">{regError}</div>}
@@ -1532,15 +1562,18 @@
                                     <thead className="bg-gray-50 border-b-2 border-red-600">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium uppercase">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase">Email</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium uppercase">Username</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium uppercase">Role</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium uppercase">Created</th>
+                                            {currentUser?.role === 'admin' && <th className="px-6 py-3 text-left text-xs font-medium uppercase">Actions</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {users.map((u, idx) => (
                                             <tr key={u.id} className="hover:bg-red-50 transition-colors animate-fade-in" style={{animationDelay: `${idx * 0.05}s`}}>
                                                 <td className="px-6 py-4 text-sm font-medium">{u.name}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-600">{u.email || 'N/A'}</td>
                                                 <td className="px-6 py-4 text-sm">{u.username}</td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -1548,6 +1581,16 @@
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm">{new Date(u.createdAt).toLocaleDateString()}</td>
+                                                {currentUser?.role === 'admin' && (
+                                                    <td className="px-6 py-4 text-sm">
+                                                        <button 
+                                                            onClick={() => handlePasswordReset(u.id)}
+                                                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold btn-hover"
+                                                        >
+                                                            Reset Password
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
