@@ -18,6 +18,9 @@
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
+    <!-- SheetJS for Excel reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <style>
         body {
             margin: 0;
@@ -579,6 +582,112 @@
                 await window.storage.set('users', JSON.stringify(updatedUsers), true);
                 alert(`✅ Password reset for ${user.name}! New password: ${newPass}`);
             };
+            
+            const handleExcelUpload = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                    alert('Please upload an Excel file (.xlsx or .xls)');
+                    event.target.value = '';
+                    return;
+                }
+                
+                setIsUploadingExcel(true);
+                setUploadMessage('📖 Reading Excel file...');
+                
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                            
+                            setUploadMessage('⚙️ Processing data...');
+                            
+                            const newModels = [];
+                            const newPrices = {};
+                            
+                            // Process rows (skip header row 0)
+                            for (let i = 1; i < jsonData.length; i++) {
+                                const row = jsonData[i];
+                                const model = row[0];
+                                
+                                if (!model || String(model).trim() === '') continue;
+                                
+                                const modelName = String(model).trim();
+                                newModels.push(modelName);
+                                
+                                // Column B: Injured Gadgets (OEM only)
+                                const injuredPrice = row[1];
+                                newPrices[`${modelName}_Injured Gadgets_OEM/Refurb`] = (injuredPrice && String(injuredPrice).toUpperCase() !== 'N/A') ? (parseFloat(injuredPrice) || 0) : 0;
+                                newPrices[`${modelName}_Injured Gadgets_Aftermarket`] = 0;
+                                
+                                // Column C: Mobile Sentrix OEM
+                                const mobileOEM = row[2];
+                                newPrices[`${modelName}_Mobile Sentrix_OEM/Refurb`] = (mobileOEM && String(mobileOEM).toUpperCase() !== 'N/A') ? (parseFloat(mobileOEM) || 0) : 0;
+                                
+                                // Column D: Mobile Sentrix Aftermarket
+                                const mobileAM = row[3];
+                                newPrices[`${modelName}_Mobile Sentrix_Aftermarket`] = (mobileAM && String(mobileAM).toUpperCase() !== 'N/A') ? (parseFloat(mobileAM) || 0) : 0;
+                                
+                                // Column E: Phone LCD Parts (OEM only)
+                                const phoneLCD = row[4];
+                                newPrices[`${modelName}_Phone LCD Parts_OEM/Refurb`] = (phoneLCD && String(phoneLCD).toUpperCase() !== 'N/A') ? (parseFloat(phoneLCD) || 0) : 0;
+                                newPrices[`${modelName}_Phone LCD Parts_Aftermarket`] = 0;
+                            }
+                            
+                            if (newModels.length === 0) {
+                                alert('❌ No valid data found in Excel file. Please check the format.');
+                                setIsUploadingExcel(false);
+                                setUploadMessage('');
+                                event.target.value = '';
+                                return;
+                            }
+                            
+                            setUploadMessage('💾 Saving to system...');
+                            
+                            // Merge with existing models (add new, keep existing)
+                            const mergedModels = [...new Set([...newModels, ...models])];
+                            
+                            // Merge prices (Excel overwrites existing for same models, preserves others)
+                            const updatedPrices = {...prices, ...newPrices};
+                            
+                            // Save to storage
+                            await window.storage.set('models', JSON.stringify(mergedModels), true);
+                            await window.storage.set('prices', JSON.stringify(updatedPrices), true);
+                            
+                            setModels(mergedModels);
+                            setPrices(updatedPrices);
+                            setEditModels(mergedModels);
+                            setEditPrices(updatedPrices);
+                            
+                            setUploadMessage('✅ Upload complete!');
+                            
+                            setTimeout(() => {
+                                setUploadMessage('');
+                                setIsUploadingExcel(false);
+                            }, 3000);
+                            
+                            alert(`✅ Success!\n\nLoaded ${newModels.length} models\nUpdated ${Object.keys(newPrices).length} prices\n\nYour batches and users are safe!`);
+                        } catch (error) {
+                            setUploadMessage('❌ Error reading file');
+                            alert('Error processing Excel file: ' + error.message);
+                            setIsUploadingExcel(false);
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                } catch (error) {
+                    setUploadMessage('❌ Error uploading');
+                    alert('Error: ' + error.message);
+                    setIsUploadingExcel(false);
+                }
+                
+                // Reset file input
+                event.target.value = '';
+            };
 
             const addModel=async()=>{
                 if(!newModel.trim())return alert('Enter model name');
@@ -978,7 +1087,6 @@
                                         {loginError&&<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm animate-slide-in">{loginError}</div>}
                                         <button onClick={handleLogin} className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 btn-hover"><LogIn size={20}/>Login</button>
                                         <button onClick={()=>setShowRegister(true)} className="w-full text-red-600 font-medium flex items-center justify-center gap-2 pt-4 border-t hover:text-red-700 transition-colors"><UserPlus size={18}/>Create New Account</button>
-                                        <div className="bg-gray-50 p-3 rounded-lg text-xs text-center"><strong>Demo:</strong> admin / admin123</div>
                                     </div>
                                 </>
                             ):(
@@ -1393,6 +1501,42 @@
                             </div>
                             {settingsTab === 'prices' && (
                                 <div className="bg-white rounded-b-xl shadow p-6 animate-fade-in">
+                                    {/* Excel Upload Section */}
+                                    <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-blue-800 mb-2">📤 Upload Excel to Update Prices</h3>
+                                                <p className="text-xs text-blue-700 mb-2">
+                                                    Your Excel file should have these columns:
+                                                </p>
+                                                <p className="text-xs font-mono bg-white px-3 py-2 rounded border border-blue-300 text-blue-900 mb-3">
+                                                    Model | Injured Gadgets | Mobile Sentrix OEM | Mobile Sentrix AM | Phone LCD
+                                                </p>
+                                                <div className="flex items-center gap-3">
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".xlsx,.xls"
+                                                        onChange={handleExcelUpload}
+                                                        disabled={isUploadingExcel}
+                                                        className="text-sm"
+                                                        id="excel-upload"
+                                                    />
+                                                    <label htmlFor="excel-upload" className="cursor-pointer px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold btn-hover">
+                                                        Choose File
+                                                    </label>
+                                                    {uploadMessage && (
+                                                        <span className={`text-sm font-semibold ${uploadMessage.includes('✅') ? 'text-green-600' : uploadMessage.includes('❌') ? 'text-red-600' : 'text-blue-600'} animate-fade-in`}>
+                                                            {uploadMessage}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-gray-600 mt-2 italic">
+                                                    💡 N/A values will be treated as $0.00
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <div className="flex justify-between mb-4">
                                         <h2 className="text-xl font-bold">Prices</h2>
                                         <div className="text-sm text-gray-600 italic">Auto-saves when you click away from a field</div>
