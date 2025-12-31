@@ -333,6 +333,10 @@
             const [resettingUserId, setResettingUserId] = useState(null);
             const [newPassword, setNewPassword] = useState('');
             const [regEmail, setRegEmail] = useState('');
+            
+            const [modelCategory, setModelCategory] = useState('iPhone');
+            const [priceCategory, setPriceCategory] = useState('iPhone');
+            const [newDeviceCategory, setNewDeviceCategory] = useState('iPhone');
 
             useEffect(() => {
                 loadData();
@@ -532,36 +536,6 @@
             const saveModels=async()=>{setIsSaving(true);try{await window.storage.set('models',JSON.stringify(editModels),true);setModels(editModels);alert('Models saved!')}catch(e){alert('Error')}setIsSaving(false)};
             const saveSuppliers=async()=>{setIsSaving(true);try{await window.storage.set('suppliers',JSON.stringify(editSuppliers),true);setSuppliers(editSuppliers);alert('Suppliers saved!')}catch(e){alert('Error')}setIsSaving(false)};
             
-            const resetToDefaults = async () => {
-                if (!confirm('This will update models and prices from Excel data. Your batches, users, and suppliers will NOT be affected. Continue?')) {
-                    return;
-                }
-                
-                try {
-                    const excelModels = ["iPhone 17 Pro Max","iPhone 17 Pro","iPhone 17 Air","iPhone 17","iPhone 16 Pro Max","iPhone 16 Pro","iPhone 16 Plus","iPhone 16","iPhone 16e","iPhone 15 Pro Max","iPhone 15 Pro","iPhone 15 Plus","iPhone 15","iPhone 14 Pro Max","iPhone 14 Pro","iPhone 14 Plus","iPhone 14","iPhone 13 Pro Max","iPhone 13 Pro","iPhone 13","iPhone 13 Mini","iPhone 12 Pro Max","iPhone 12 / 12 Pro","iPhone 12 Mini","iPhone 11 Pro Max","iPhone 11 Pro","iPhone 11","iPhone XS Max","iPhone XS","iPhone XR","iPhone X","iPhone 8 Plus","iPhone 8","iPhone 7 Plus","iPhone 7","iPhone 6S Plus","iPhone 6S","iPhone 6 Plus","iPhone 6"];
-                    const excelPrices = {"iPhone 17 Pro Max_Injured Gadgets_OEM/Refurb":150.0,"iPhone 17 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 17 Pro Max_Mobile Sentrix_OEM/Refurb":0.0,"iPhone 17 Pro Max_Mobile Sentrix_Aftermarket":0.0,"iPhone 17 Pro Max_Phone LCD Parts_OEM/Refurb":0.0,"iPhone 17 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 17 Pro_Injured Gadgets_OEM/Refurb":125.0,"iPhone 17 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 17 Pro_Mobile Sentrix_OEM/Refurb":0.0,"iPhone 17 Pro_Mobile Sentrix_Aftermarket":0.0,"iPhone 17 Pro_Phone LCD Parts_OEM/Refurb":0.0,"iPhone 17 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 17 Air_Injured Gadgets_OEM/Refurb":100.0,"iPhone 17 Air_Injured Gadgets_Aftermarket":0.0,"iPhone 17 Air_Mobile Sentrix_OEM/Refurb":0.0,"iPhone 17 Air_Mobile Sentrix_Aftermarket":0.0,"iPhone 17 Air_Phone LCD Parts_OEM/Refurb":0.0,"iPhone 17 Air_Phone LCD Parts_Aftermarket":0.0,"iPhone 17_Injured Gadgets_OEM/Refurb":75.0,"iPhone 17_Injured Gadgets_Aftermarket":0.0,"iPhone 17_Mobile Sentrix_OEM/Refurb":0.0,"iPhone 17_Mobile Sentrix_Aftermarket":0.0,"iPhone 17_Phone LCD Parts_OEM/Refurb":0.0,"iPhone 17_Phone LCD Parts_Aftermarket":0.0,"iPhone 16 Pro Max_Injured Gadgets_OEM/Refurb":165.0,"iPhone 16 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 16 Pro Max_Mobile Sentrix_OEM/Refurb":150.0,"iPhone 16 Pro Max_Mobile Sentrix_Aftermarket":5.0,"iPhone 16 Pro Max_Phone LCD Parts_OEM/Refurb":150.0,"iPhone 16 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 16 Pro_Injured Gadgets_OEM/Refurb":105.0,"iPhone 16 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 16 Pro_Mobile Sentrix_OEM/Refurb":100.0,"iPhone 16 Pro_Mobile Sentrix_Aftermarket":3.0,"iPhone 16 Pro_Phone LCD Parts_OEM/Refurb":100.0,"iPhone 16 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 16 Plus_Injured Gadgets_OEM/Refurb":63.0,"iPhone 16 Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 16 Plus_Mobile Sentrix_OEM/Refurb":80.0,"iPhone 16 Plus_Mobile Sentrix_Aftermarket":3.0,"iPhone 16 Plus_Phone LCD Parts_OEM/Refurb":80.0,"iPhone 16 Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 16_Injured Gadgets_OEM/Refurb":65.0,"iPhone 16_Injured Gadgets_Aftermarket":0.0,"iPhone 16_Mobile Sentrix_OEM/Refurb":23.0,"iPhone 16_Mobile Sentrix_Aftermarket":1.0,"iPhone 16_Phone LCD Parts_OEM/Refurb":80.0,"iPhone 16_Phone LCD Parts_Aftermarket":0.0,"iPhone 16e_Injured Gadgets_OEM/Refurb":26.0,"iPhone 16e_Injured Gadgets_Aftermarket":0.0,"iPhone 16e_Mobile Sentrix_OEM/Refurb":80.0,"iPhone 16e_Mobile Sentrix_Aftermarket":3.0,"iPhone 16e_Phone LCD Parts_OEM/Refurb":0.0,"iPhone 16e_Phone LCD Parts_Aftermarket":0.0,"iPhone 15 Pro Max_Injured Gadgets_OEM/Refurb":123.0,"iPhone 15 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 15 Pro Max_Mobile Sentrix_OEM/Refurb":120.0,"iPhone 15 Pro Max_Mobile Sentrix_Aftermarket":5.0,"iPhone 15 Pro Max_Phone LCD Parts_OEM/Refurb":120.0,"iPhone 15 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 15 Pro_Injured Gadgets_OEM/Refurb":102.0,"iPhone 15 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 15 Pro_Mobile Sentrix_OEM/Refurb":100.0,"iPhone 15 Pro_Mobile Sentrix_Aftermarket":5.0,"iPhone 15 Pro_Phone LCD Parts_OEM/Refurb":100.0,"iPhone 15 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 15 Plus_Injured Gadgets_OEM/Refurb":52.0,"iPhone 15 Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 15 Plus_Mobile Sentrix_OEM/Refurb":40.0,"iPhone 15 Plus_Mobile Sentrix_Aftermarket":2.0,"iPhone 15 Plus_Phone LCD Parts_OEM/Refurb":40.0,"iPhone 15 Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 15_Injured Gadgets_OEM/Refurb":61.0,"iPhone 15_Injured Gadgets_Aftermarket":0.0,"iPhone 15_Mobile Sentrix_OEM/Refurb":45.0,"iPhone 15_Mobile Sentrix_Aftermarket":2.0,"iPhone 15_Phone LCD Parts_OEM/Refurb":45.0,"iPhone 15_Phone LCD Parts_Aftermarket":0.0,"iPhone 14 Pro Max_Injured Gadgets_OEM/Refurb":104.0,"iPhone 14 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 14 Pro Max_Mobile Sentrix_OEM/Refurb":100.0,"iPhone 14 Pro Max_Mobile Sentrix_Aftermarket":5.0,"iPhone 14 Pro Max_Phone LCD Parts_OEM/Refurb":100.0,"iPhone 14 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 14 Pro_Injured Gadgets_OEM/Refurb":75.0,"iPhone 14 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 14 Pro_Mobile Sentrix_OEM/Refurb":68.0,"iPhone 14 Pro_Mobile Sentrix_Aftermarket":2.0,"iPhone 14 Pro_Phone LCD Parts_OEM/Refurb":68.0,"iPhone 14 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 14 Plus_Injured Gadgets_OEM/Refurb":44.0,"iPhone 14 Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 14 Plus_Mobile Sentrix_OEM/Refurb":30.0,"iPhone 14 Plus_Mobile Sentrix_Aftermarket":1.0,"iPhone 14 Plus_Phone LCD Parts_OEM/Refurb":30.0,"iPhone 14 Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 14_Injured Gadgets_OEM/Refurb":26.0,"iPhone 14_Injured Gadgets_Aftermarket":0.0,"iPhone 14_Mobile Sentrix_OEM/Refurb":23.0,"iPhone 14_Mobile Sentrix_Aftermarket":1.0,"iPhone 14_Phone LCD Parts_OEM/Refurb":23.0,"iPhone 14_Phone LCD Parts_Aftermarket":0.0,"iPhone 13 Pro Max_Injured Gadgets_OEM/Refurb":50.0,"iPhone 13 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 13 Pro Max_Mobile Sentrix_OEM/Refurb":47.0,"iPhone 13 Pro Max_Mobile Sentrix_Aftermarket":0.0,"iPhone 13 Pro Max_Phone LCD Parts_OEM/Refurb":47.0,"iPhone 13 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 13 Pro_Injured Gadgets_OEM/Refurb":44.0,"iPhone 13 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 13 Pro_Mobile Sentrix_OEM/Refurb":40.0,"iPhone 13 Pro_Mobile Sentrix_Aftermarket":0.0,"iPhone 13 Pro_Phone LCD Parts_OEM/Refurb":40.0,"iPhone 13 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 13_Injured Gadgets_OEM/Refurb":26.0,"iPhone 13_Injured Gadgets_Aftermarket":0.0,"iPhone 13_Mobile Sentrix_OEM/Refurb":20.0,"iPhone 13_Mobile Sentrix_Aftermarket":0.0,"iPhone 13_Phone LCD Parts_OEM/Refurb":20.0,"iPhone 13_Phone LCD Parts_Aftermarket":0.0,"iPhone 13 Mini_Injured Gadgets_OEM/Refurb":44.0,"iPhone 13 Mini_Injured Gadgets_Aftermarket":0.0,"iPhone 13 Mini_Mobile Sentrix_OEM/Refurb":28.0,"iPhone 13 Mini_Mobile Sentrix_Aftermarket":0.0,"iPhone 13 Mini_Phone LCD Parts_OEM/Refurb":28.0,"iPhone 13 Mini_Phone LCD Parts_Aftermarket":0.0,"iPhone 12 Pro Max_Injured Gadgets_OEM/Refurb":49.0,"iPhone 12 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 12 Pro Max_Mobile Sentrix_OEM/Refurb":40.0,"iPhone 12 Pro Max_Mobile Sentrix_Aftermarket":0.0,"iPhone 12 Pro Max_Phone LCD Parts_OEM/Refurb":40.0,"iPhone 12 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 12 / 12 Pro_Injured Gadgets_OEM/Refurb":16.0,"iPhone 12 / 12 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 12 / 12 Pro_Mobile Sentrix_OEM/Refurb":13.0,"iPhone 12 / 12 Pro_Mobile Sentrix_Aftermarket":0.0,"iPhone 12 / 12 Pro_Phone LCD Parts_OEM/Refurb":13.0,"iPhone 12 / 12 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 12 Mini_Injured Gadgets_OEM/Refurb":19.0,"iPhone 12 Mini_Injured Gadgets_Aftermarket":0.0,"iPhone 12 Mini_Mobile Sentrix_OEM/Refurb":20.0,"iPhone 12 Mini_Mobile Sentrix_Aftermarket":0.0,"iPhone 12 Mini_Phone LCD Parts_OEM/Refurb":20.0,"iPhone 12 Mini_Phone LCD Parts_Aftermarket":0.0,"iPhone 11 Pro Max_Injured Gadgets_OEM/Refurb":20.0,"iPhone 11 Pro Max_Injured Gadgets_Aftermarket":0.0,"iPhone 11 Pro Max_Mobile Sentrix_OEM/Refurb":17.0,"iPhone 11 Pro Max_Mobile Sentrix_Aftermarket":0.0,"iPhone 11 Pro Max_Phone LCD Parts_OEM/Refurb":17.0,"iPhone 11 Pro Max_Phone LCD Parts_Aftermarket":0.0,"iPhone 11 Pro_Injured Gadgets_OEM/Refurb":15.0,"iPhone 11 Pro_Injured Gadgets_Aftermarket":0.0,"iPhone 11 Pro_Mobile Sentrix_OEM/Refurb":13.0,"iPhone 11 Pro_Mobile Sentrix_Aftermarket":0.0,"iPhone 11 Pro_Phone LCD Parts_OEM/Refurb":13.0,"iPhone 11 Pro_Phone LCD Parts_Aftermarket":0.0,"iPhone 11_Injured Gadgets_OEM/Refurb":3.0,"iPhone 11_Injured Gadgets_Aftermarket":0.0,"iPhone 11_Mobile Sentrix_OEM/Refurb":2.0,"iPhone 11_Mobile Sentrix_Aftermarket":0.0,"iPhone 11_Phone LCD Parts_OEM/Refurb":2.0,"iPhone 11_Phone LCD Parts_Aftermarket":0.0,"iPhone XS Max_Injured Gadgets_OEM/Refurb":16.0,"iPhone XS Max_Injured Gadgets_Aftermarket":0.0,"iPhone XS Max_Mobile Sentrix_OEM/Refurb":16.0,"iPhone XS Max_Mobile Sentrix_Aftermarket":0.0,"iPhone XS Max_Phone LCD Parts_OEM/Refurb":16.0,"iPhone XS Max_Phone LCD Parts_Aftermarket":0.0,"iPhone XS_Injured Gadgets_OEM/Refurb":8.0,"iPhone XS_Injured Gadgets_Aftermarket":0.0,"iPhone XS_Mobile Sentrix_OEM/Refurb":6.0,"iPhone XS_Mobile Sentrix_Aftermarket":0.0,"iPhone XS_Phone LCD Parts_OEM/Refurb":6.0,"iPhone XS_Phone LCD Parts_Aftermarket":0.0,"iPhone XR_Injured Gadgets_OEM/Refurb":2.0,"iPhone XR_Injured Gadgets_Aftermarket":0.0,"iPhone XR_Mobile Sentrix_OEM/Refurb":1.75,"iPhone XR_Mobile Sentrix_Aftermarket":0.0,"iPhone XR_Phone LCD Parts_OEM/Refurb":1.5,"iPhone XR_Phone LCD Parts_Aftermarket":0.0,"iPhone X_Injured Gadgets_OEM/Refurb":8.0,"iPhone X_Injured Gadgets_Aftermarket":0.0,"iPhone X_Mobile Sentrix_OEM/Refurb":6.0,"iPhone X_Mobile Sentrix_Aftermarket":0.0,"iPhone X_Phone LCD Parts_OEM/Refurb":6.0,"iPhone X_Phone LCD Parts_Aftermarket":0.0,"iPhone 8 Plus_Injured Gadgets_OEM/Refurb":2.0,"iPhone 8 Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 8 Plus_Mobile Sentrix_OEM/Refurb":3.5,"iPhone 8 Plus_Mobile Sentrix_Aftermarket":0.0,"iPhone 8 Plus_Phone LCD Parts_OEM/Refurb":3.5,"iPhone 8 Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 8_Injured Gadgets_OEM/Refurb":1.0,"iPhone 8_Injured Gadgets_Aftermarket":0.0,"iPhone 8_Mobile Sentrix_OEM/Refurb":1.0,"iPhone 8_Mobile Sentrix_Aftermarket":0.0,"iPhone 8_Phone LCD Parts_OEM/Refurb":1.0,"iPhone 8_Phone LCD Parts_Aftermarket":0.0,"iPhone 7 Plus_Injured Gadgets_OEM/Refurb":0.0,"iPhone 7 Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 7 Plus_Mobile Sentrix_OEM/Refurb":3.5,"iPhone 7 Plus_Mobile Sentrix_Aftermarket":0.0,"iPhone 7 Plus_Phone LCD Parts_OEM/Refurb":3.5,"iPhone 7 Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 7_Injured Gadgets_OEM/Refurb":0.0,"iPhone 7_Injured Gadgets_Aftermarket":0.0,"iPhone 7_Mobile Sentrix_OEM/Refurb":0.25,"iPhone 7_Mobile Sentrix_Aftermarket":0.0,"iPhone 7_Phone LCD Parts_OEM/Refurb":0.5,"iPhone 7_Phone LCD Parts_Aftermarket":0.0,"iPhone 6S Plus_Injured Gadgets_OEM/Refurb":0.0,"iPhone 6S Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 6S Plus_Mobile Sentrix_OEM/Refurb":1.0,"iPhone 6S Plus_Mobile Sentrix_Aftermarket":0.0,"iPhone 6S Plus_Phone LCD Parts_OEM/Refurb":2.0,"iPhone 6S Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 6S_Injured Gadgets_OEM/Refurb":0.0,"iPhone 6S_Injured Gadgets_Aftermarket":0.0,"iPhone 6S_Mobile Sentrix_OEM/Refurb":0.25,"iPhone 6S_Mobile Sentrix_Aftermarket":0.0,"iPhone 6S_Phone LCD Parts_OEM/Refurb":0.5,"iPhone 6S_Phone LCD Parts_Aftermarket":0.0,"iPhone 6 Plus_Injured Gadgets_OEM/Refurb":0.0,"iPhone 6 Plus_Injured Gadgets_Aftermarket":0.0,"iPhone 6 Plus_Mobile Sentrix_OEM/Refurb":0.25,"iPhone 6 Plus_Mobile Sentrix_Aftermarket":0.0,"iPhone 6 Plus_Phone LCD Parts_OEM/Refurb":0.5,"iPhone 6 Plus_Phone LCD Parts_Aftermarket":0.0,"iPhone 6_Injured Gadgets_OEM/Refurb":0.0,"iPhone 6_Injured Gadgets_Aftermarket":0.0,"iPhone 6_Mobile Sentrix_OEM/Refurb":0.25,"iPhone 6_Mobile Sentrix_Aftermarket":0.0,"iPhone 6_Phone LCD Parts_OEM/Refurb":0.5,"iPhone 6_Phone LCD Parts_Aftermarket":0.0};
-                    
-                    // Merge existing models with Excel models (add any missing, keep custom ones)
-                    const mergedModels = [...new Set([...excelModels, ...models])];
-                    
-                    // Update prices (merge with existing to preserve Local Vendor and custom prices)
-                    const updatedPrices = {...prices, ...excelPrices};
-                    
-                    // Save updates - DON'T touch batches, users, or suppliers!
-                    await window.storage.set('models', JSON.stringify(mergedModels), true);
-                    await window.storage.set('prices', JSON.stringify(updatedPrices), true);
-                    
-                    setModels(mergedModels);
-                    setPrices(updatedPrices);
-                    setEditModels(mergedModels);
-                    setEditPrices(updatedPrices);
-                    
-                    alert('✅ Models and prices updated from Excel! Your batches, users, and suppliers are safe.');
-                } catch (error) {
-                    alert('Error updating data: ' + error.message);
-                }
-            };
-            
             const handlePasswordReset = async (userId) => {
                 const user = users.find(u => u.id === userId);
                 if (!user) return;
@@ -581,6 +555,20 @@
                 setUsers(updatedUsers);
                 await window.storage.set('users', JSON.stringify(updatedUsers), true);
                 alert(`✅ Password reset for ${user.name}! New password: ${newPass}`);
+            };
+            
+            // Helper function to detect device category
+            const getDeviceCategory = (modelName) => {
+                const name = modelName.toLowerCase();
+                if (name.includes('iphone')) return 'iPhone';
+                if (name.includes('samsung') || name.includes('galaxy')) return 'Samsung';
+                if (name.includes('pixel') || name.includes('google')) return 'Google';
+                return 'Other';
+            };
+            
+            // Get models by category
+            const getModelsByCategory = (category) => {
+                return editModels.filter(model => getDeviceCategory(model) === category);
             };
             
             const handleExcelUpload = async (event) => {
@@ -1541,6 +1529,35 @@
                                         <h2 className="text-xl font-bold">Prices</h2>
                                         <div className="text-sm text-gray-600 italic">Auto-saves when you click away from a field</div>
                                     </div>
+                                    
+                                    {/* Category Tabs for Prices */}
+                                    <div className="flex gap-2 mb-4 border-b-2">
+                                        <button 
+                                            onClick={() => setPriceCategory('iPhone')}
+                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'iPhone' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📱 iPhone
+                                        </button>
+                                        <button 
+                                            onClick={() => setPriceCategory('Samsung')}
+                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'Samsung' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📱 Samsung
+                                        </button>
+                                        <button 
+                                            onClick={() => setPriceCategory('Google')}
+                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'Google' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📱 Google
+                                        </button>
+                                        <button 
+                                            onClick={() => setPriceCategory('All')}
+                                            className={`px-6 py-2 font-semibold transition-all ${priceCategory === 'All' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📋 All Devices
+                                        </button>
+                                    </div>
+                                    
                                     <div className="overflow-auto" style={{ maxHeight: '600px' }}>
                                         <table className="w-full text-sm">
                                             <thead className="bg-gray-50 sticky top-0">
@@ -1554,7 +1571,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {editModels.map((mod, i) => (
+                                                {(priceCategory === 'All' ? editModels : getModelsByCategory(priceCategory)).map((mod, i) => (
                                                     <tr key={i} className="border-t hover:bg-red-50 transition-colors">
                                                         <td className="px-4 py-2 font-medium sticky left-0 bg-white">{mod}</td>
                                                         {editSuppliers.map(sup => sup.qualities.map(q => {
@@ -1586,17 +1603,73 @@
                                         <h2 className="text-xl font-bold">Models</h2>
                                         <div className="text-sm text-gray-600 italic">Auto-saves when you add/remove</div>
                                     </div>
+                                    
+                                    {/* Category Tabs */}
+                                    <div className="flex gap-2 mb-6 border-b-2">
+                                        <button 
+                                            onClick={() => setModelCategory('iPhone')}
+                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'iPhone' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📱 iPhone
+                                        </button>
+                                        <button 
+                                            onClick={() => setModelCategory('Samsung')}
+                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'Samsung' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📱 Samsung
+                                        </button>
+                                        <button 
+                                            onClick={() => setModelCategory('Google')}
+                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'Google' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📱 Google
+                                        </button>
+                                        <button 
+                                            onClick={() => setModelCategory('All')}
+                                            className={`px-6 py-2 font-semibold transition-all ${modelCategory === 'All' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-600 hover:text-gray-800'}`}
+                                        >
+                                            📋 All Devices
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Add Device Section */}
                                     <div className="flex gap-3 mb-6">
-                                        <input type="text" value={newModel} onChange={e => setNewModel(e.target.value)} placeholder="Add device name" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" onKeyPress={e => e.key === 'Enter' && addModel()} />
+                                        <input 
+                                            type="text" 
+                                            value={newModel} 
+                                            onChange={e => setNewModel(e.target.value)} 
+                                            placeholder={`Add ${modelCategory === 'All' ? '' : modelCategory + ' '}device name`}
+                                            className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" 
+                                            onKeyPress={e => e.key === 'Enter' && addModel()} 
+                                        />
+                                        <select 
+                                            value={newDeviceCategory}
+                                            onChange={e => setNewDeviceCategory(e.target.value)}
+                                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all"
+                                        >
+                                            <option value="iPhone">iPhone</option>
+                                            <option value="Samsung">Samsung</option>
+                                            <option value="Google">Google</option>
+                                        </select>
                                         <button onClick={addModel} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold btn-hover">Add</button>
                                     </div>
+                                    
+                                    {/* Models Grid - Filtered by Category */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                                        {editModels.map((mod, i) => (
+                                        {(modelCategory === 'All' ? editModels : getModelsByCategory(modelCategory)).map((mod, i) => (
                                             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded border card-hover animate-fade-in" style={{animationDelay: `${i * 0.02}s`}}>
-                                                <span className="font-medium">{mod}</span>
+                                                <div>
+                                                    <span className="font-medium">{mod}</span>
+                                                    <div className="text-xs text-gray-500 mt-1">{getDeviceCategory(mod)}</div>
+                                                </div>
                                                 <button onClick={() => removeModel(mod)} className="text-red-600 hover:text-red-800 transition-colors"><Trash2 size={16} /></button>
                                             </div>
                                         ))}
+                                        {modelCategory !== 'All' && getModelsByCategory(modelCategory).length === 0 && (
+                                            <div className="col-span-3 text-center py-8 text-gray-500">
+                                                No {modelCategory} devices yet. Add one above!
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -1649,29 +1722,6 @@
                                     </div>
                                 </div>
                             )}
-                        </div>
-                        
-                        {/* Update Prices from Excel Button */}
-                        <div className="max-w-7xl mx-auto px-4 mt-8">
-                            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
-                                <div className="flex items-start gap-4">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-bold text-blue-800 mb-2">📊 Update Prices from Excel</h3>
-                                        <p className="text-sm text-blue-700 mb-2">
-                                            This will update models and prices from the original Excel data (39 iPhone models).
-                                        </p>
-                                        <p className="text-xs text-green-600 font-semibold">
-                                            ✅ Your batches, users, and suppliers (including Local Vendor) will NOT be affected!
-                                        </p>
-                                    </div>
-                                    <button 
-                                        onClick={resetToDefaults}
-                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold btn-hover whitespace-nowrap"
-                                    >
-                                        Update Data
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 );
