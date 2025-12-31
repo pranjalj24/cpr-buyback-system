@@ -15,6 +15,9 @@
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <style>
         body {
             margin: 0;
@@ -315,6 +318,11 @@
             
             const [editingSupplier, setEditingSupplier] = useState(null);
             const [editSupplierName, setEditSupplierName] = useState('');
+            
+            const [isRenamingBatch, setIsRenamingBatch] = useState(false);
+            const [tempBatchName, setTempBatchName] = useState('');
+            const [isSavingBatch, setIsSavingBatch] = useState(false);
+            const [saveMessage, setSaveMessage] = useState('');
 
             useEffect(() => {
                 loadData();
@@ -364,6 +372,36 @@
 
             const saveBatches=async(newBatches)=>{try{await window.storage.set('batches',JSON.stringify(newBatches),true);setBatches(newBatches)}catch(error){console.error('Error:',error)}};
 
+            // Auto-save batch with debounce
+            const autoSaveBatch = async (updatedBatch) => {
+                setIsSavingBatch(true);
+                setSaveMessage('Saving...');
+                try {
+                    const bs = {...updatedBatch, updatedAt: new Date().toISOString(), updatedBy: currentUser.name};
+                    const idx = batches.findIndex(b => b.id === updatedBatch.id);
+                    let nb;
+                    if (idx >= 0) {
+                        nb = [...batches];
+                        nb[idx] = bs;
+                    } else {
+                        nb = [...batches, bs];
+                    }
+                    await saveBatches(nb);
+                    setSaveMessage('Saved ✓');
+                    setTimeout(() => setSaveMessage(''), 2000);
+                } catch (error) {
+                    setSaveMessage('Error saving');
+                    setTimeout(() => setSaveMessage(''), 2000);
+                }
+                setIsSavingBatch(false);
+            };
+
+            let saveTimeout;
+            const debouncedAutoSave = (batch) => {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => autoSaveBatch(batch), 1000);
+            };
+
             const createNewBatch=()=>{
                 const bn=`B${new Date().getFullYear()}-${String(batches.length+1).padStart(3,'0')}`;
                 const nb={id:Date.now().toString(),batchNumber:bn,createdBy:currentUser.name,createdById:currentUser.id,createdAt:new Date().toISOString(),inventory:models.map(m=>({model:m,oem:0,aftermarket:0})),analysis:null};
@@ -411,17 +449,81 @@
                 setCurrentBatch({...currentBatch,analysis:{optimalRevenue:opt,supplierAllocations:alloc,supplierTotals:tots,analyzedAt:new Date().toISOString()}})
             };
 
-            const updateQuantity=(idx,field,value)=>{const inv=[...currentBatch.inventory];inv[idx][field]=parseInt(value)||0;setCurrentBatch({...currentBatch,inventory:inv})};
+            const updateQuantity=(idx,field,value)=>{
+                const inv=[...currentBatch.inventory];
+                inv[idx][field]=parseInt(value)||0;
+                const updatedBatch = {...currentBatch,inventory:inv};
+                setCurrentBatch(updatedBatch);
+                debouncedAutoSave(updatedBatch);
+            };
+            const startRenamingBatch = () => {
+                setIsRenamingBatch(true);
+                setTempBatchName(currentBatch.batchNumber);
+            };
+            
+            const saveBatchName = async () => {
+                if (!tempBatchName.trim()) {
+                    alert('Batch name cannot be empty');
+                    setIsRenamingBatch(false);
+                    return;
+                }
+                const updatedBatch = {...currentBatch, batchNumber: tempBatchName.trim()};
+                setCurrentBatch(updatedBatch);
+                await autoSaveBatch(updatedBatch);
+                setIsRenamingBatch(false);
+            };
+            
+            const cancelRename = () => {
+                setIsRenamingBatch(false);
+                setTempBatchName('');
+            };
+
             const calculateLiveTotal=()=>{if(!currentBatch)return 0;let t=0;currentBatch.inventory.forEach(item=>{['OEM/Refurb','Aftermarket'].forEach(q=>{const qty=q==='OEM/Refurb'?item.oem:item.aftermarket;if(qty>0){let bp=0;suppliers.forEach(sup=>{const pk=`${item.model}_${sup.name}_${q}`;const pr=prices[pk]||0;if(pr>bp)bp=pr});t+=bp*qty}})});return t};
 
             const savePrices=async()=>{setIsSaving(true);try{await window.storage.set('prices',JSON.stringify(editPrices),true);setPrices(editPrices);alert('Prices saved!')}catch(e){alert('Error')}setIsSaving(false)};
             const saveModels=async()=>{setIsSaving(true);try{await window.storage.set('models',JSON.stringify(editModels),true);setModels(editModels);alert('Models saved!')}catch(e){alert('Error')}setIsSaving(false)};
             const saveSuppliers=async()=>{setIsSaving(true);try{await window.storage.set('suppliers',JSON.stringify(editSuppliers),true);setSuppliers(editSuppliers);alert('Suppliers saved!')}catch(e){alert('Error')}setIsSaving(false)};
 
-            const addModel=()=>{if(!newModel.trim())return alert('Enter model name');if(editModels.includes(newModel.trim()))return alert('Model already exists');setEditModels([...editModels,newModel.trim()]);setNewModel('')};
-            const removeModel=(model)=>{if(!confirm(`Remove ${model}?`))return;setEditModels(editModels.filter(m=>m!==model))};
-            const addSupplier=()=>{if(!newSupplierName.trim())return alert('Enter supplier name');if(editSuppliers.find(s=>s.name===newSupplierName.trim()))return alert('Supplier exists');setEditSuppliers([...editSuppliers,{name:newSupplierName.trim(),qualities:['OEM/Refurb','Aftermarket']}]);setNewSupplierName('')};
-            const removeSupplier=(supplierName)=>{if(!confirm(`Remove ${supplierName}?`))return;setEditSuppliers(editSuppliers.filter(s=>s.name!==supplierName))};
+            const addModel=async()=>{
+                if(!newModel.trim())return alert('Enter model name');
+                if(editModels.includes(newModel.trim()))return alert('Model already exists');
+                const updatedModels = [...editModels,newModel.trim()];
+                setEditModels(updatedModels);
+                setNewModel('');
+                try{
+                    await window.storage.set('models',JSON.stringify(updatedModels),true);
+                    setModels(updatedModels);
+                }catch(e){alert('Error saving')}
+            };
+            const removeModel=async(model)=>{
+                if(!confirm(`Remove ${model}?`))return;
+                const updatedModels = editModels.filter(m=>m!==model);
+                setEditModels(updatedModels);
+                try{
+                    await window.storage.set('models',JSON.stringify(updatedModels),true);
+                    setModels(updatedModels);
+                }catch(e){alert('Error saving')}
+            };
+            const addSupplier=async()=>{
+                if(!newSupplierName.trim())return alert('Enter supplier name');
+                if(editSuppliers.find(s=>s.name===newSupplierName.trim()))return alert('Supplier exists');
+                const updatedSuppliers = [...editSuppliers,{name:newSupplierName.trim(),qualities:['OEM/Refurb','Aftermarket']}];
+                setEditSuppliers(updatedSuppliers);
+                setNewSupplierName('');
+                try{
+                    await window.storage.set('suppliers',JSON.stringify(updatedSuppliers),true);
+                    setSuppliers(updatedSuppliers);
+                }catch(e){alert('Error saving')}
+            };
+            const removeSupplier=async(supplierName)=>{
+                if(!confirm(`Remove ${supplierName}?`))return;
+                const updatedSuppliers = editSuppliers.filter(s=>s.name!==supplierName);
+                setEditSuppliers(updatedSuppliers);
+                try{
+                    await window.storage.set('suppliers',JSON.stringify(updatedSuppliers),true);
+                    setSuppliers(updatedSuppliers);
+                }catch(e){alert('Error saving')}
+            };
             
             const startEditingSupplier=(supplier)=>{setEditingSupplier(supplier.name);setEditSupplierName(supplier.name)};
             const saveSupplierNameEdit=async()=>{
@@ -468,7 +570,136 @@
                 setEditPrices({...editPrices,[key]:parseFloat(formatted)});
             };
 
-            const exportBatch=(batch)=>{const d=JSON.stringify(batch,null,2);const blob=new Blob([d],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${batch.batchNumber}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url)};
+            const exportBatchAsPDF = (batch) => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Header with CPR branding
+                doc.setFillColor(220, 38, 38); // Red color
+                doc.rect(0, 0, 210, 40, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(24);
+                doc.setFont(undefined, 'bold');
+                doc.text('CPR', 20, 25);
+                doc.setFontSize(14);
+                doc.text('Screen Buyback Report', 60, 25);
+                
+                // Batch Information
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'normal');
+                let y = 50;
+                doc.text(`Batch Number: ${batch.batchNumber}`, 20, y);
+                y += 7;
+                doc.text(`Created by: ${batch.createdBy}`, 20, y);
+                y += 7;
+                doc.text(`Date: ${new Date(batch.createdAt).toLocaleDateString()}`, 20, y);
+                y += 7;
+                if (batch.updatedAt) {
+                    doc.text(`Last Updated: ${new Date(batch.updatedAt).toLocaleDateString()}`, 20, y);
+                    y += 7;
+                }
+                
+                y += 5;
+                doc.setDrawColor(220, 38, 38);
+                doc.line(20, y, 190, y);
+                y += 10;
+                
+                // Inventory Section
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text('INVENTORY', 20, y);
+                y += 10;
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                batch.inventory.forEach(item => {
+                    if (item.oem > 0 || item.aftermarket > 0) {
+                        doc.setFont(undefined, 'bold');
+                        doc.text(item.model, 25, y);
+                        y += 6;
+                        doc.setFont(undefined, 'normal');
+                        if (item.oem > 0) {
+                            doc.text(`  OEM/Refurb: ${item.oem} units`, 25, y);
+                            y += 5;
+                        }
+                        if (item.aftermarket > 0) {
+                            doc.text(`  Aftermarket: ${item.aftermarket} units`, 25, y);
+                            y += 5;
+                        }
+                        y += 3;
+                    }
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                });
+                
+                // Analysis Section
+                if (batch.analysis) {
+                    y += 10;
+                    doc.setDrawColor(220, 38, 38);
+                    doc.line(20, y, 190, y);
+                    y += 10;
+                    
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('ANALYSIS', 20, y);
+                    y += 10;
+                    
+                    // Optimal Revenue - Highlighted
+                    doc.setFillColor(34, 197, 94); // Green
+                    doc.rect(20, y - 7, 170, 12, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(16);
+                    doc.text(`Optimal Revenue: $${batch.analysis.optimalRevenue.toFixed(2)}`, 25, y);
+                    doc.setTextColor(0, 0, 0);
+                    y += 15;
+                    
+                    // Supplier Breakdown
+                    doc.setFontSize(12);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Supplier Allocation', 20, y);
+                    y += 8;
+                    
+                    const sortedSuppliers = Object.entries(batch.analysis.supplierTotals)
+                        .filter(([_, t]) => t > 0)
+                        .sort((a, b) => b[1] - a[1]);
+                    
+                    doc.setFontSize(10);
+                    sortedSuppliers.forEach(([supplier, total]) => {
+                        const items = batch.analysis.supplierAllocations[supplier] || [];
+                        
+                        doc.setFont(undefined, 'bold');
+                        doc.text(`${supplier}: $${total.toFixed(2)}`, 25, y);
+                        y += 6;
+                        
+                        doc.setFont(undefined, 'normal');
+                        items.forEach(item => {
+                            doc.text(`  ${item.model} (${item.quality}): ${item.quantity} × $${item.price.toFixed(2)} = $${item.total.toFixed(2)}`, 25, y);
+                            y += 5;
+                            if (y > 270) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                        });
+                        y += 3;
+                    });
+                }
+                
+                // Footer
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    doc.text(`Generated by CPR Buyback Management System - Page ${i} of ${pageCount}`, 20, 290);
+                }
+                
+                // Save PDF
+                doc.save(`${batch.batchNumber}_Report.pdf`);
+            };
+
             const filteredBatches=batches.filter(batch=>batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())||batch.createdBy.toLowerCase().includes(searchTerm.toLowerCase()));
             const getDashboardStats=()=>{const totalBatches=batches.length;const analyzedBatches=batches.filter(b=>b.analysis).length;const totalRevenue=batches.reduce((sum,b)=>sum+(b.analysis?.optimalRevenue||0),0);const recentBatches=batches.slice(-5).reverse();return{totalBatches,analyzedBatches,totalRevenue,recentBatches}};
 
@@ -724,7 +955,32 @@
                                             <span className="text-white font-bold">CPR</span>
                                         </div>
                                         <div>
-                                            <h1 className="text-2xl font-bold">{currentBatch.batchNumber}</h1>
+                                            {isRenamingBatch ? (
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={tempBatchName} 
+                                                        onChange={e => setTempBatchName(e.target.value)}
+                                                        onKeyPress={e => e.key === 'Enter' && saveBatchName()}
+                                                        className="text-2xl font-bold px-2 py-1 border-2 border-red-500 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={saveBatchName} className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-bold btn-hover">✓</button>
+                                                    <button onClick={cancelRename} className="px-3 py-1 bg-gray-600 text-white rounded-lg text-sm font-bold btn-hover">✕</button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <h1 className="text-2xl font-bold">{currentBatch.batchNumber}</h1>
+                                                    <button onClick={startRenamingBatch} className="text-blue-600 hover:text-blue-800 transition-colors" title="Rename batch">
+                                                        <Edit2 size={18} />
+                                                    </button>
+                                                    {saveMessage && (
+                                                        <span className={`text-sm ml-2 ${saveMessage.includes('✓') ? 'text-green-600' : 'text-gray-500'} animate-fade-in`}>
+                                                            {saveMessage}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                             <p className="text-sm">By <span className="text-red-600 font-semibold">{currentBatch.createdBy}</span></p>
                                         </div>
                                     </div>
@@ -742,12 +998,9 @@
                                     <button onClick={runAnalysis} className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold btn-hover">
                                         <TrendingUp size={18} />Run Analysis
                                     </button>
-                                    <button onClick={saveBatch} className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold btn-hover">
-                                        <Save size={18} />Save
-                                    </button>
                                     {currentBatch.analysis && (
-                                        <button onClick={() => exportBatch(currentBatch)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg btn-hover">
-                                            <Download size={18} />Export
+                                        <button onClick={() => exportBatchAsPDF(currentBatch)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg btn-hover">
+                                            <Download size={18} />Export PDF
                                         </button>
                                     )}
                                 </div>
@@ -885,7 +1138,7 @@
                                 <div className="bg-white rounded-b-xl shadow p-6 animate-fade-in">
                                     <div className="flex justify-between mb-4">
                                         <h2 className="text-xl font-bold">Prices</h2>
-                                        <button onClick={savePrices} disabled={isSaving} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold disabled:opacity-50 btn-hover">{isSaving ? 'Saving...' : 'Save'}</button>
+                                        <div className="text-sm text-gray-600 italic">Auto-saves when you click away from a field</div>
                                     </div>
                                     <div className="overflow-auto" style={{ maxHeight: '600px' }}>
                                         <table className="w-full text-sm">
@@ -928,7 +1181,10 @@
                             )}
                             {settingsTab === 'models' && (
                                 <div className="bg-white rounded-b-xl shadow p-6 animate-fade-in">
-                                    <h2 className="text-xl font-bold mb-4">Models</h2>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xl font-bold">Models</h2>
+                                        <div className="text-sm text-gray-600 italic">Auto-saves when you add/remove</div>
+                                    </div>
                                     <div className="flex gap-3 mb-6">
                                         <input type="text" value={newModel} onChange={e => setNewModel(e.target.value)} placeholder="iPhone 17 Pro Max" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" onKeyPress={e => e.key === 'Enter' && addModel()} />
                                         <button onClick={addModel} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold btn-hover">Add</button>
@@ -941,12 +1197,14 @@
                                             </div>
                                         ))}
                                     </div>
-                                    <button onClick={saveModels} disabled={isSaving} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold disabled:opacity-50 btn-hover">{isSaving ? 'Saving...' : 'Save'}</button>
                                 </div>
                             )}
                             {settingsTab === 'suppliers' && (
                                 <div className="bg-white rounded-b-xl shadow p-6 animate-fade-in">
-                                    <h2 className="text-xl font-bold mb-4">Suppliers</h2>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xl font-bold">Suppliers</h2>
+                                        <div className="text-sm text-gray-600 italic">Auto-saves when you add/remove/edit</div>
+                                    </div>
                                     <div className="flex gap-3 mb-6">
                                         <input type="text" value={newSupplierName} onChange={e => setNewSupplierName(e.target.value)} placeholder="Supplier name" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-all" onKeyPress={e => e.key === 'Enter' && addSupplier()} />
                                         <button onClick={addSupplier} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold btn-hover">Add</button>
@@ -986,9 +1244,8 @@
                                             );
                                         })}
                                     </div>
-                                    <button onClick={saveSuppliers} disabled={isSaving} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold disabled:opacity-50 btn-hover">{isSaving ? 'Saving...' : 'Save'}</button>
                                     <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-                                        💡 <strong>Tip:</strong> Click the pencil icon to edit supplier names. All price data will update automatically.
+                                        💡 <strong>Tip:</strong> Changes save automatically. Click the pencil icon to edit supplier names.
                                     </div>
                                 </div>
                             )}
