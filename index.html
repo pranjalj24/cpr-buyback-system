@@ -766,22 +766,45 @@
                         .sort((a, b) => b[1] - a[1]);
                     
                     if (sortedSuppliers.length > 0) {
-                        const allocationHeaders = ['Supplier', 'Models', 'Total Quantity', 'Amount'];
-                        const allocationRows = sortedSuppliers.map(([supplier, total]) => {
+                        const allocationHeaders = ['Supplier', 'Models', 'Qty', 'Amount'];
+                        const allocationRows = [];
+                        
+                        sortedSuppliers.forEach(([supplier, total]) => {
                             const items = batch.analysis.supplierAllocations[supplier] || [];
                             const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
                             const modelNames = [...new Set(items.map(i => i.model))].join(', ');
-                            return [
-                                supplier,
-                                modelNames,
-                                String(totalQty),
-                                `$${total.toFixed(2)}`
-                            ];
+                            
+                            // Split long model names into multiple lines for text wrapping
+                            const maxCharsPerLine = 50;
+                            const words = modelNames.split(', ');
+                            let lines = [];
+                            let currentLine = '';
+                            
+                            words.forEach((word) => {
+                                const testLine = currentLine ? currentLine + ', ' + word : word;
+                                if (testLine.length > maxCharsPerLine && currentLine) {
+                                    lines.push(currentLine);
+                                    currentLine = word;
+                                } else {
+                                    currentLine = testLine;
+                                }
+                            });
+                            if (currentLine) lines.push(currentLine);
+                            
+                            // Add rows for this supplier (one row per line of models)
+                            lines.forEach((line, lineIdx) => {
+                                allocationRows.push([
+                                    lineIdx === 0 ? supplier : '',
+                                    line,
+                                    lineIdx === 0 ? String(totalQty) : '',
+                                    lineIdx === 0 ? `$${total.toFixed(2)}` : ''
+                                ]);
+                            });
                         });
                         
                         y = addTable(allocationHeaders, allocationRows, y, {
-                            columnWidths: [45, 80, 25, 30],
-                            fontSize: 9,
+                            columnWidths: [38, 92, 20, 30],
+                            fontSize: 8,
                             headerColor: [30, 64, 175]
                         });
                     }
