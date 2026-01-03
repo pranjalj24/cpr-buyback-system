@@ -494,7 +494,10 @@
                         }
                     })
                 });
-                setCurrentBatch({...currentBatch,analysis:{optimalRevenue:opt,supplierAllocations:alloc,supplierTotals:tots,analyzedAt:new Date().toISOString()}})
+                const updatedBatch = {...currentBatch,analysis:{optimalRevenue:opt,supplierAllocations:alloc,supplierTotals:tots,analyzedAt:new Date().toISOString()}};
+                setCurrentBatch(updatedBatch);
+                // Auto-save the analysis
+                autoSaveBatch(updatedBatch);
             };
 
             const updateQuantity=(idx,field,value)=>{
